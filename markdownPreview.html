@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html ng-app="myApp">
+    <head>
+        <meta charset="UTF-8">
+        <title>markdown预览器</title>
+        <link rel="stylesheet" href="./style.css">
+        <script src="./angular.js"></script>
+    </head>
+    <body>
+        <div id="toolbar"></div>
+        <div id="container" ng-controller="myCtrl">
+            <div id="editor-column" class="pull-left">
+                <div id="panel-editor">
+                    <div class="editor-content" id="mdeditor" contenteditable ng-model="inputValue" strip-br="true" ng-change="showPreviewValue()"></div>
+                </div>
+            </div>
+            <div id="preview-column" class="pull-right">
+                <div id="panel-preview">
+                    <div id="preview" class="markdown-body" ng-bind-html="previewValue">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+<script>
+let app = angular.module('myApp', []);
+
+app
+  .directive('contenteditable', ['$sce', function($sce) {
+      return {
+          restrict: 'A',
+          require: '?ngModel',
+          link: function(scope, element, attrs, ngModel) {
+              if (!ngModel) return;
+
+              ngModel.$render = function() {
+                  element.html($sce.getTrustedHtml(ngModel.$viewValue || ''));
+              };
+
+              element.on('blur keyup change', function() {
+                  scope.$evalAsync(read);
+              });
+              read();
+
+              function read() {
+                  var html = element.html();
+
+                  if (attrs.stripBr && html == '<br>') {
+                      html = '';
+                  }
+                  ngModel.$setViewValue(html);
+              }
+          }
+      };
+  }])
+  .controller('myCtrl', function($scope, $http, $sce) {
+     const url = "https://api.github.com/markdown/raw";
+     $scope.showPreviewValue = function(){
+        $http.post(url,$scope.inputValue,{
+            timeout:30000,
+            responseType: "text",
+            headers:{'Content-Type':"text/plain"}
+        }).then(function(res){
+            if($scope.inputValue){
+                $scope.previewValue = $sce.trustAsHtml(res.data);
+            }
+        },function(err){
+            console.log(err);
+        });
+     }
+  });
+
+</script>
